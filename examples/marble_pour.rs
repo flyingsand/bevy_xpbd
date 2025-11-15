@@ -42,18 +42,19 @@ fn startup(
         }),
     ));
     let radius = 15.;
+    let size = Vec2::new(10., 2.);
     commands
         .spawn((
-            Mesh2d(sphere.clone()),
+            Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
             MeshMaterial2d(blue.clone()),
             Transform {
-                scale: Vec3::splat(radius),
+                scale: size.extend(0.),
                 ..Default::default()
             },
         ))
-        .insert(StaticColliderBundle {
-            pos: Pos(Vec2::new(0., -radius - 2.)),
-            collider: CircleCollider { radius },
+        .insert(StaticBoxColliderBundle {
+            pos: Pos(Vec2::new(0., -3.)),
+            collider: BoxCollider { size },
             ..Default::default()
         });
     commands.insert_resource(Meshes { sphere: sphere });
