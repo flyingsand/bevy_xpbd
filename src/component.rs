@@ -25,6 +25,16 @@ impl Default for CircleCollider {
         Self { radius: 50. }
     }
 }
+#[derive(Component, Debug)]
+pub struct BoxCollider {
+    pub size: Vec2,
+}
+
+impl Default for BoxCollider {
+    fn default() -> Self {
+        Self { radius: Vec2::ONE }
+    }
+}
 #[derive(Component, Debug, Default, Deref)]
 pub struct Vel(pub Vec2);
 
