@@ -24,10 +24,16 @@ impl Plugin for XpbdPlugins {
             FixedUpdate,
             collect_collision_pairs.in_set(XpbdSystems::CollectCollisionPairs),
         )
-        .add_systems(FixedUpdate, integrate.in_set(XpbdSystems::Integrate))
         .add_systems(
             FixedUpdate,
-            (solve_pos, solve_pos_statics).in_set(XpbdSystems::SolvePos),
+            (integrate, clear_contacts)
+                .chain()
+                .in_set(XpbdSystems::Integrate),
+        )
+        .add_systems(
+            FixedUpdate,
+            (solve_pos, solve_pos_circle_statics, solve_pos_box_statics)
+                .in_set(XpbdSystems::SolvePos),
         )
         .add_systems(FixedUpdate, update_vel.in_set(XpbdSystems::UpdateVel))
         .add_systems(
@@ -96,12 +102,15 @@ fn integrate(
         pre_solve_vel.0 = **vel;
     }
 }
+fn clear_contacts(mut contacts: ResMut<Contacts>, mut static_contacts: ResMut<StaticContacts>) {
+    contacts.0.clear();
+    static_contacts.0.clear();
+}
 fn solve_pos(
     mut query: Query<(Entity, &mut Pos, &CircleCollider, &Mass)>,
     mut contacts: ResMut<Contacts>,
 ) {
     let mut iter = query.iter_combinations_mut();
-    contacts.0.clear();
     while let Some(
         [
             (entity_a, mut pos_a, circle_a, m_a),
@@ -123,12 +132,11 @@ fn solve_pos(
     }
 }
 
-fn solve_pos_statics(
+fn solve_pos_circle_statics(
     mut dynamics: Query<(Entity, &mut Pos, &CircleCollider), With<Mass>>,
     statics: Query<(Entity, &Pos, &CircleCollider), Without<Mass>>,
     mut contacts: ResMut<StaticContacts>,
 ) {
-    contacts.0.clear();
     for (entity_a, mut pos_a, col_a) in dynamics.iter_mut() {
         for (entity_b, pos_b, col_b) in statics.iter() {
             let ab = pos_b.0 - pos_a.0;
@@ -142,6 +150,42 @@ fn solve_pos_statics(
         }
     }
 }
+fn solve_pos_box_statics(
+    mut dynamics: Query<(Entity, &mut Pos, &CircleCollider), With<Mass>>,
+    statics: Query<(Entity, &Pos, &BoxCollider), Without<Mass>>,
+    mut contacts: ResMut<StaticContacts>,
+) {
+    for (entity_a, mut pos_a, col_a) in dynamics.iter_mut() {
+        for (entity_b, pos_b, box_b) in statics.iter() {
+            let ab = pos_a.0 - pos_b.0;
+            let box_to_circle_abs = ab.abs();
+            let half_box = box_b.size / 2.;
+            let cornor_to_center = box_to_circle_abs - half_box;
+            let r = col_a.radius;
+            if cornor_to_center.x > r || cornor_to_center.y > r {
+                continue;
+            }
+            let s = ab.signum();
+            let (n, penetration_depth) = if cornor_to_center.x > 0. && cornor_to_center.y > 0. {
+                let cornor_to_center_sqr = cornor_to_center.length_squared();
+                if cornor_to_center_sqr > r * r {
+                    continue;
+                }
+                let cornor_dist = cornor_to_center_sqr.sqrt();
+                let penetration_depth = r - cornor_dist;
+                let n = cornor_to_center / cornor_dist * -s;
+                (n, penetration_depth)
+            } else if cornor_to_center.x > cornor_to_center.y {
+                (Vec2::X * -s.x, -cornor_to_center.x + r)
+            } else {
+                (Vec2::Y * -s.y, -cornor_to_center.y + r)
+            };
+            pos_a.0 -= n * penetration_depth;
+            contacts.push((entity_a, entity_b, n));
+        }
+    }
+}
+
 fn update_vel(mut query: Query<(&Pos, &PrePos, &mut Vel)>, time: Res<Time>) {
     let dt = time.delta_secs();
     for (pos, prepos, mut vel) in query.iter_mut() {

@@ -41,8 +41,8 @@ fn startup(
             ..OrthographicProjection::default_2d()
         }),
     ));
-    let radius = 15.;
-    let size = Vec2::new(10., 2.);
+    //let radius = 15.;
+    let size = Vec2::new(10., 3.);
     commands
         .spawn((
             Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
@@ -54,6 +54,34 @@ fn startup(
         ))
         .insert(StaticBoxColliderBundle {
             pos: Pos(Vec2::new(0., -3.)),
+            collider: BoxCollider { size },
+            ..Default::default()
+        });
+    commands
+        .spawn((
+            Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
+            MeshMaterial2d(blue.clone()),
+            Transform {
+                scale: size.extend(0.),
+                ..Default::default()
+            },
+        ))
+        .insert(StaticBoxColliderBundle {
+            pos: Pos(Vec2::new(-8., 0.)),
+            collider: BoxCollider { size },
+            ..Default::default()
+        });
+    commands
+        .spawn((
+            Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
+            MeshMaterial2d(blue.clone()),
+            Transform {
+                scale: size.extend(0.),
+                ..Default::default()
+            },
+        ))
+        .insert(StaticBoxColliderBundle {
+            pos: Pos(Vec2::new(8., 0.)),
             collider: BoxCollider { size },
             ..Default::default()
         });
