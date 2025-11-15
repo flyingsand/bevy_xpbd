@@ -32,7 +32,7 @@ pub struct BoxCollider {
 
 impl Default for BoxCollider {
     fn default() -> Self {
-        Self { radius: Vec2::ONE }
+        Self { size: Vec2::ONE }
     }
 }
 #[derive(Component, Debug, Default, Deref)]
