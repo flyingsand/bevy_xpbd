@@ -1,0 +1,20 @@
+[package]
+name = "bevy_xpbd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = {workspace = true}
+rand = "0.9.2"
+
+[[example]]
+name = "xpbd"
+path = "examples/simple.rs"
+
+[[example]]
+name = "particle"
+path = "examples/particle_collisions.rs"
+
+[[example]]
+name = "marble_pour"
+path = "examples/marble_pour.rs"
