@@ -6,7 +6,7 @@ mod entity;
 pub use component::*;
 pub use entity::*;
 
-pub const DELTA_TIME: f32 = 1. / 64.;
+pub const DELTA_TIME: f64 = 1. / 240.;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum XpbdSystems {
     CollectCollisionPairs,

@@ -5,6 +5,7 @@ use rand::random;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.8, 0.8, 0.9)))
+        .insert_resource(Time::from_hz(1. / DELTA_TIME))
         .add_plugins(DefaultPlugins)
         .add_plugins(XpbdPlugins)
         .add_systems(Startup, startup)
@@ -42,7 +43,7 @@ fn startup(
         }),
     ));
     //let radius = 15.;
-    let size = Vec2::new(10., 3.);
+    let size = Vec2::new(100., 3.);
     commands
         .spawn((
             Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
@@ -55,6 +56,7 @@ fn startup(
         .insert(StaticBoxColliderBundle {
             pos: Pos(Vec2::new(0., -3.)),
             collider: BoxCollider { size },
+            restitution: Restitution(0.),
             ..Default::default()
         });
     commands
@@ -67,8 +69,9 @@ fn startup(
             },
         ))
         .insert(StaticBoxColliderBundle {
-            pos: Pos(Vec2::new(-8., 0.)),
+            pos: Pos(Vec2::new(-54., 0.)),
             collider: BoxCollider { size },
+            restitution: Restitution(0.),
             ..Default::default()
         });
     commands
@@ -81,8 +84,9 @@ fn startup(
             },
         ))
         .insert(StaticBoxColliderBundle {
-            pos: Pos(Vec2::new(8., 0.)),
+            pos: Pos(Vec2::new(54., 0.)),
             collider: BoxCollider { size },
+            restitution: Restitution(0.),
             ..Default::default()
         });
     commands.insert_resource(Meshes { sphere: sphere });
@@ -121,7 +125,8 @@ fn spawn_marbles(
         ))
         .insert(ParticleBundle {
             collider: CircleCollider { radius },
-            ..ParticleBundle::new_with_pos_and_vel(pos, vel)
+            restitution: Restitution(0.),
+            ..ParticleBundle::new_with_pos_and_vel(pos, vel * 0.1)
         });
 }
 
