@@ -41,12 +41,6 @@ pub struct Vel(pub Vec2);
 #[derive(Component, Debug, Default, Deref)]
 pub struct PreSolveVel(pub Vec2);
 
-#[derive(Debug, Default, Deref, DerefMut, Resource)]
-pub struct Contacts(pub Vec<(Entity, Entity, Vec2)>);
-
-#[derive(Debug, Default, Deref, DerefMut, Resource)]
-pub struct StaticContacts(pub Vec<(Entity, Entity, Vec2)>);
-
 #[derive(Component, Debug, Deref)]
 pub struct Restitution(pub f32);
 

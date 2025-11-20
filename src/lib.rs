@@ -2,11 +2,12 @@ use bevy::prelude::*;
 
 mod component;
 mod entity;
+mod resources;
 
 pub use component::*;
 pub use entity::*;
-
-pub const DELTA_TIME: f64 = 1. / 240.;
+pub use resources::*;
+pub const DELTA_TIME: f64 = 1. / 600.;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum XpbdSystems {
     CollectCollisionPairs,
@@ -59,13 +60,7 @@ impl Plugin for XpbdPlugins {
         app.init_resource::<Gravity>();
         app.init_resource::<Contacts>();
         app.init_resource::<StaticContacts>();
-    }
-}
-#[derive(Debug, Resource, Deref)]
-pub struct Gravity(pub Vec2);
-impl Default for Gravity {
-    fn default() -> Self {
-        Self(Vec2::new(0., -9.8))
+        app.init_resource::<CollisionPairs>();
     }
 }
 //old simulate
@@ -85,7 +80,27 @@ fn simulate(
     }
 }
 */
-fn collect_collision_pairs() {}
+fn collect_collision_pairs(
+    query: Query<(Entity, &Pos, &CircleCollider)>,
+    mut collision_pairs: ResMut<CollisionPairs>,
+) {
+    collision_pairs.clear();
+    unsafe {
+        for (entity_a, pos_a, circle_a) in query.iter_unsafe() {
+            for (entity_b, pos_b, circle_b) in query.iter_unsafe() {
+                if entity_a <= entity_b {
+                    continue;
+                }
+                let ab = pos_b.0 - pos_a.0;
+                let combined_radius = circle_a.radius + circle_b.radius;
+                let ab_sqr_len = ab.length_squared();
+                if ab_sqr_len <= combined_radius * combined_radius {
+                    collision_pairs.push((entity_a, entity_b));
+                }
+            }
+        }
+    }
+}
 
 fn integrate(
     mut query: Query<(&mut Pos, &mut PrePos, &mut Vel, &Mass, &mut PreSolveVel)>,
@@ -107,17 +122,18 @@ fn clear_contacts(mut contacts: ResMut<Contacts>, mut static_contacts: ResMut<St
     static_contacts.0.clear();
 }
 fn solve_pos(
-    mut query: Query<(Entity, &mut Pos, &CircleCollider, &Mass)>,
+    mut query: Query<(&mut Pos, &CircleCollider, &Mass)>,
     mut contacts: ResMut<Contacts>,
+    collision_pairs: Res<CollisionPairs>,
 ) {
-    let mut iter = query.iter_combinations_mut();
-    while let Some(
-        [
-            (entity_a, mut pos_a, circle_a, m_a),
-            (entity_b, mut pos_b, circle_b, m_b),
-        ],
-    ) = iter.fetch_next()
-    {
+    for (entity_a, entity_b) in collision_pairs.iter() {
+        let ((mut pos_a, circle_a, m_a), (mut pos_b, circle_b, m_b)) = unsafe {
+            assert!(entity_a != entity_b);
+            (
+                query.get_unchecked(*entity_a).unwrap(),
+                query.get_unchecked(*entity_b).unwrap(),
+            )
+        };
         let ab = pos_b.0 - pos_a.0;
         let combined_radius = circle_a.radius + circle_b.radius;
         if ab.length_squared() < combined_radius * combined_radius {
@@ -125,13 +141,12 @@ fn solve_pos(
             let n = ab.normalize();
             let w_a = 1. / **m_a;
             let w_b = 1. / **m_b;
-            contacts.0.push((entity_a, entity_b, n));
+            contacts.0.push((*entity_a, *entity_b, n));
             pos_a.0 -= n * penetration_depth * (w_a / (w_a + w_b));
             pos_b.0 += n * penetration_depth * (w_b / (w_a + w_b));
         }
     }
 }
-
 fn solve_pos_circle_statics(
     mut dynamics: Query<(Entity, &mut Pos, &CircleCollider), With<Mass>>,
     statics: Query<(Entity, &Pos, &CircleCollider), Without<Mass>>,
