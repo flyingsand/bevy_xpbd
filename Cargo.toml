@@ -8,8 +8,8 @@ bevy = {workspace = true}
 rand = "0.9.2"
 
 [[example]]
-name = "xpbd"
-path = "examples/simple.rs"
+name = "ball_stacking"
+path = "examples/ball_stacking.rs"
 
 [[example]]
 name = "particle"
