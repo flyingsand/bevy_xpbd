@@ -5,7 +5,7 @@ use rand::random;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.8, 0.8, 0.9)))
-        .insert_resource(Time::from_hz(1. / DELTA_TIME))
+        .insert_resource(Time::from_hz((1. / SUB_DT).into()))
         .add_plugins(DefaultPlugins)
         .add_plugins(XpbdPlugins)
         .add_systems(Startup, startup)

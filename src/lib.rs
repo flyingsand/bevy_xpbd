@@ -1,5 +1,4 @@
-use bevy::prelude::*;
-
+use bevy::{diagnostic::FrameCount, prelude::*};
 mod component;
 mod entity;
 mod resources;
@@ -7,7 +6,9 @@ mod resources;
 pub use component::*;
 pub use entity::*;
 pub use resources::*;
-pub const DELTA_TIME: f64 = 1. / 600.;
+pub const NUM_SUBSTEPS: i32 = 10;
+pub const DELTA_TIME: f32 = 1. / 60.;
+pub const SUB_DT: f32 = DELTA_TIME / NUM_SUBSTEPS as f32;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum XpbdSystems {
     CollectCollisionPairs,
@@ -21,6 +22,7 @@ pub enum XpbdSystems {
 pub struct XpbdPlugins;
 impl Plugin for XpbdPlugins {
     fn build(&self, app: &mut App) {
+        app.add_systems(FixedLast, fixed_update_frame_count);
         app.add_systems(
             FixedUpdate,
             collect_collision_pairs.in_set(XpbdSystems::CollectCollisionPairs),
@@ -61,6 +63,7 @@ impl Plugin for XpbdPlugins {
         app.init_resource::<Contacts>();
         app.init_resource::<StaticContacts>();
         app.init_resource::<CollisionPairs>();
+        app.init_resource::<FixFrameCount>();
     }
 }
 //old simulate
@@ -80,19 +83,35 @@ fn simulate(
     }
 }
 */
+fn fixed_update_frame_count(
+    mut fix_frame_count: ResMut<FixFrameCount>,
+    frame_count: Res<FrameCount>,
+) {
+    fix_frame_count.0 = fix_frame_count.0.wrapping_add(1);
+    info!(
+        "Has been passed {} fixed_frame and has been passed {}",
+        **fix_frame_count, frame_count.0
+    );
+}
 fn collect_collision_pairs(
-    query: Query<(Entity, &Pos, &CircleCollider)>,
+    query: Query<(Entity, &Pos, &Vel, &CircleCollider)>,
     mut collision_pairs: ResMut<CollisionPairs>,
 ) {
     collision_pairs.clear();
+    let k = 2.;
+    let safety_margin_factor: f32 = k * SUB_DT as f32;
+    let safety_margin_factor_sqr = safety_margin_factor * safety_margin_factor;
     unsafe {
-        for (entity_a, pos_a, circle_a) in query.iter_unsafe() {
-            for (entity_b, pos_b, circle_b) in query.iter_unsafe() {
+        for (entity_a, pos_a, vel_a, circle_a) in query.iter_unsafe() {
+            for (entity_b, pos_b, vel_b, circle_b) in query.iter_unsafe() {
                 if entity_a <= entity_b {
                     continue;
                 }
                 let ab = pos_b.0 - pos_a.0;
-                let combined_radius = circle_a.radius + circle_b.radius;
+                let vel_a_sqr = vel_a.length_squared();
+                let vel_b_sqr = vel_b.length_squared();
+                let safety_margin_sqr = safety_margin_factor_sqr * (vel_a_sqr + vel_b_sqr);
+                let combined_radius = circle_a.radius + circle_b.radius + safety_margin_sqr.sqrt();
                 let ab_sqr_len = ab.length_squared();
                 if ab_sqr_len <= combined_radius * combined_radius {
                     collision_pairs.push((entity_a, entity_b));
@@ -122,7 +141,7 @@ fn clear_contacts(mut contacts: ResMut<Contacts>, mut static_contacts: ResMut<St
     static_contacts.0.clear();
 }
 fn solve_pos(
-    mut query: Query<(&mut Pos, &CircleCollider, &Mass)>,
+    query: Query<(&mut Pos, &CircleCollider, &Mass)>,
     mut contacts: ResMut<Contacts>,
     collision_pairs: Res<CollisionPairs>,
 ) {

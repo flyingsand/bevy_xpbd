@@ -1,6 +1,5 @@
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    math::VectorSpace,
     prelude::*,
 };
 use bevy_xpbd::*;
@@ -8,7 +7,7 @@ use bevy_xpbd::*;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::srgb(0.8, 0.8, 0.9)))
-        .insert_resource(Time::from_hz(1. / DELTA_TIME))
+        .insert_resource(Time::from_hz((1. / SUB_DT).into()))
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(DefaultPlugins)

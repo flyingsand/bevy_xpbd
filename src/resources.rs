@@ -16,3 +16,6 @@ impl Default for Gravity {
         Self(Vec2::new(0., -9.8))
     }
 }
+
+#[derive(Debug, Default, Resource, Deref, DerefMut)]
+pub struct FixFrameCount(pub u64);
