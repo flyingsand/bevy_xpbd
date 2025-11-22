@@ -17,7 +17,7 @@ impl ParticleBundle {
     pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
         Self {
             pos: Pos(pos),
-            pre_pos: PrePos(pos - vel * DELTA_TIME as f32),
+            pre_pos: PrePos(pos - vel * SUB_DT as f32),
             vel: Vel(vel),
             ..Default::default()
         }

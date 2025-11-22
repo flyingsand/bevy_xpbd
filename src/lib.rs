@@ -1,4 +1,4 @@
-use bevy::{diagnostic::FrameCount, prelude::*};
+use bevy::prelude::*;
 mod component;
 mod entity;
 mod resources;
@@ -6,8 +6,8 @@ mod resources;
 pub use component::*;
 pub use entity::*;
 pub use resources::*;
-pub const NUM_SUBSTEPS: i32 = 10;
-pub const DELTA_TIME: f32 = 1. / 60.;
+pub const NUM_SUBSTEPS: i32 = 5;
+pub const DELTA_TIME: f32 = 1. / 240.;
 pub const SUB_DT: f32 = DELTA_TIME / NUM_SUBSTEPS as f32;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum XpbdSystems {
@@ -25,7 +25,9 @@ impl Plugin for XpbdPlugins {
         app.add_systems(FixedLast, fixed_update_frame_count);
         app.add_systems(
             FixedUpdate,
-            collect_collision_pairs.in_set(XpbdSystems::CollectCollisionPairs),
+            collect_collision_pairs
+                .in_set(XpbdSystems::CollectCollisionPairs)
+                .run_if(fix_frame_multiple_of(NUM_SUBSTEPS as u64, 0)),
         )
         .add_systems(
             FixedUpdate,
@@ -45,7 +47,12 @@ impl Plugin for XpbdPlugins {
         )
         .add_systems(
             FixedUpdate,
-            sync_transfrom.in_set(XpbdSystems::SyncTransfrom),
+            sync_transfrom
+                .in_set(XpbdSystems::SyncTransfrom)
+                .run_if(fix_frame_multiple_of(
+                    NUM_SUBSTEPS as u64,
+                    NUM_SUBSTEPS as u64 - 1,
+                )),
         );
         app.configure_sets(
             FixedUpdate,
@@ -83,20 +90,18 @@ fn simulate(
     }
 }
 */
-fn fixed_update_frame_count(
-    mut fix_frame_count: ResMut<FixFrameCount>,
-    frame_count: Res<FrameCount>,
-) {
+fn fix_frame_multiple_of(n: u64, k: u64) -> impl SystemCondition<()> {
+    IntoSystem::into_system(move |fix_frame_count: Res<FixFrameCount>| **fix_frame_count % n == k)
+}
+
+fn fixed_update_frame_count(mut fix_frame_count: ResMut<FixFrameCount>) {
     fix_frame_count.0 = fix_frame_count.0.wrapping_add(1);
-    info!(
-        "Has been passed {} fixed_frame and has been passed {}",
-        **fix_frame_count, frame_count.0
-    );
 }
 fn collect_collision_pairs(
     query: Query<(Entity, &Pos, &Vel, &CircleCollider)>,
     mut collision_pairs: ResMut<CollisionPairs>,
 ) {
+    info!("Collision pairs collection started");
     collision_pairs.clear();
     let k = 2.;
     let safety_margin_factor: f32 = k * SUB_DT as f32;
@@ -127,10 +132,12 @@ fn integrate(
     gravity: Res<Gravity>,
 ) {
     let delta_time = time.delta_secs();
+    info!("delta_time: {}", delta_time);
     for (mut pos, mut pre_pos, mut vel, mass, mut pre_solve_vel) in query.iter_mut() {
         let g_force = **mass * **gravity;
         let ex_force = g_force;
         vel.0 += delta_time * ex_force / **mass;
+        vel.0 = **vel * 0.999;
         pre_pos.0 = pos.0;
         pos.0 += **vel * delta_time;
         pre_solve_vel.0 = **vel;

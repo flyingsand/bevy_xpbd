@@ -38,7 +38,7 @@ fn spawn_balls(
     let sphere = meshes.add(Circle::new(1.));
     let blue = materials.add(Color::srgb(0.4, 0.4, 0.6));
 
-    let size = Vec2::new(20., 3.);
+    let size = Vec2::new(20., 30.);
     commands
         .spawn((
             Mesh2d(meshes.add(Rectangle::from_size(Vec2::ONE))),
@@ -49,18 +49,18 @@ fn spawn_balls(
             },
         ))
         .insert(StaticBoxColliderBundle {
-            pos: Pos(Vec2::new(0., -3.)),
+            pos: Pos(Vec2::new(0., -15.5)),
             collider: BoxCollider { size },
             restitution: Restitution(0.),
             ..Default::default()
         });
     let radius = 0.15;
-    let stacks = 5;
-    for i in 0..15 {
+    let stacks = 15;
+    for i in 0..6 {
         for j in 0..stacks {
             let pos = Vec2::new(
-                (j as f32 - stacks as f32 / 2.) * 2.5 * radius,
-                2. * radius * i as f32 - 2.,
+                (j as f32 - stacks as f32 / 2.) * 2. * radius,
+                2. * radius * i as f32,
             );
             let vel = Vec2::ZERO;
 
