@@ -94,7 +94,7 @@ fn startup(
         blue: materials.add(Color::srgb(0.4, 0.4, 0.6)),
     });
     commands.insert_resource(SpawnTimer {
-        timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+        timer: Timer::from_seconds(0.2, TimerMode::Repeating),
     });
 }
 
@@ -111,8 +111,8 @@ fn spawn_marbles(
         return;
     }
     let radius = 0.1;
-    let pos = Vec2::new(random::<f32>() - 0.5, random::<f32>() - 0.5) * 0.5 + Vec2::Y * 3.;
-    let vel = Vec2::new(random::<f32>() - 0.5, random::<f32>() - 0.5);
+    let pos = Vec2::new((random::<f32>() - 0.5) * 10., random::<f32>() - 0.5) * 0.5 + Vec2::Y * 0.1;
+    let vel = Vec2::new(random::<f32>() - 2., random::<f32>() - 2.) * 0.00001;
     commands
         .spawn((
             Mesh2d(meshes.sphere.clone()),
@@ -125,7 +125,7 @@ fn spawn_marbles(
         ))
         .insert(ParticleBundle {
             collider: CircleCollider { radius },
-            restitution: Restitution(0.),
+            restitution: Restitution(0.2),
             ..ParticleBundle::new_with_pos_and_vel(pos, vel * 0.1)
         });
 }

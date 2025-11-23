@@ -56,10 +56,10 @@ fn spawn_balls(
         });
     let radius = 0.15;
     let stacks = 15;
-    for i in 0..6 {
+    for i in 0..10 {
         for j in 0..stacks {
             let pos = Vec2::new(
-                (j as f32 - stacks as f32 / 2.) * 2. * radius,
+                (j as f32 - stacks as f32 / 2.) * 2.5 * radius,
                 2. * radius * i as f32,
             );
             let vel = Vec2::ZERO;
@@ -76,7 +76,7 @@ fn spawn_balls(
                 ))
                 .insert(ParticleBundle {
                     collider: CircleCollider { radius },
-                    restitution: Restitution(0.),
+                    restitution: Restitution(0.1),
                     ..ParticleBundle::new_with_pos_and_vel(pos, vel)
                 });
         }

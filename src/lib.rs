@@ -6,8 +6,8 @@ mod resources;
 pub use component::*;
 pub use entity::*;
 pub use resources::*;
-pub const NUM_SUBSTEPS: i32 = 5;
-pub const DELTA_TIME: f32 = 1. / 240.;
+pub const NUM_SUBSTEPS: i32 = 10;
+pub const DELTA_TIME: f32 = 1. / 60.;
 pub const SUB_DT: f32 = DELTA_TIME / NUM_SUBSTEPS as f32;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum XpbdSystems {
@@ -103,8 +103,8 @@ fn collect_collision_pairs(
 ) {
     info!("Collision pairs collection started");
     collision_pairs.clear();
-    let k = 2.;
-    let safety_margin_factor: f32 = k * SUB_DT as f32;
+    let k = 1.;
+    let safety_margin_factor: f32 = k * DELTA_TIME as f32;
     let safety_margin_factor_sqr = safety_margin_factor * safety_margin_factor;
     unsafe {
         for (entity_a, pos_a, vel_a, circle_a) in query.iter_unsafe() {
@@ -135,9 +135,10 @@ fn integrate(
     info!("delta_time: {}", delta_time);
     for (mut pos, mut pre_pos, mut vel, mass, mut pre_solve_vel) in query.iter_mut() {
         let g_force = **mass * **gravity;
-        let ex_force = g_force;
+        let ex_force = g_force - vel.0 * 0.001;
         vel.0 += delta_time * ex_force / **mass;
-        vel.0 = **vel * 0.999;
+        //vel.0 = **vel.min(Vec2::ONE * 5.);
+        //vel.0 = **vel.max(Vec2::ONE * -5.);
         pre_pos.0 = pos.0;
         pos.0 += **vel * delta_time;
         pre_solve_vel.0 = **vel;
@@ -155,10 +156,15 @@ fn solve_pos(
     for (entity_a, entity_b) in collision_pairs.iter() {
         let ((mut pos_a, circle_a, m_a), (mut pos_b, circle_b, m_b)) = unsafe {
             assert!(entity_a != entity_b);
-            (
-                query.get_unchecked(*entity_a).unwrap(),
-                query.get_unchecked(*entity_b).unwrap(),
-            )
+            if let Ok(q_a) = query.get_unchecked(*entity_a) {
+                if let Ok(q_b) = query.get_unchecked(*entity_b) {
+                    (q_a, q_b)
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            }
         };
         let ab = pos_b.0 - pos_a.0;
         let combined_radius = circle_a.radius + circle_b.radius;
