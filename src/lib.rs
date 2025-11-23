@@ -101,7 +101,6 @@ fn collect_collision_pairs(
     query: Query<(Entity, &Pos, &Vel, &CircleCollider)>,
     mut collision_pairs: ResMut<CollisionPairs>,
 ) {
-    info!("Collision pairs collection started");
     collision_pairs.clear();
     let k = 1.;
     let safety_margin_factor: f32 = k * DELTA_TIME as f32;
@@ -132,7 +131,6 @@ fn integrate(
     gravity: Res<Gravity>,
 ) {
     let delta_time = time.delta_secs();
-    info!("delta_time: {}", delta_time);
     for (mut pos, mut pre_pos, mut vel, mass, mut pre_solve_vel) in query.iter_mut() {
         let g_force = **mass * **gravity;
         let ex_force = g_force - vel.0 * 0.001;
@@ -168,16 +166,32 @@ fn solve_pos(
         };
         let ab = pos_b.0 - pos_a.0;
         let combined_radius = circle_a.radius + circle_b.radius;
-        if ab.length_squared() < combined_radius * combined_radius {
-            let penetration_depth = combined_radius - ab.length();
-            let n = ab.normalize();
-            let w_a = 1. / **m_a;
-            let w_b = 1. / **m_b;
-            contacts.0.push((*entity_a, *entity_b, n));
-            pos_a.0 -= n * penetration_depth * (w_a / (w_a + w_b));
-            pos_b.0 += n * penetration_depth * (w_b / (w_a + w_b));
+        let len = ab.length();
+        if len < combined_radius {
+            let penetration_depth = combined_radius - len;
+            let normal = ab / len;
+            constrain_body_positions(&mut pos_a, &mut pos_b, m_a, m_b, &normal, penetration_depth);
+            contacts.0.push((*entity_a, *entity_b, normal));
         }
     }
+}
+fn constrain_body_positions(
+    pos_a: &mut Pos,
+    pos_b: &mut Pos,
+    mass_a: &Mass,
+    mass_b: &Mass,
+    normal: &Vec2,
+    penetration_depth: f32,
+) {
+    let w_a = 1. / **mass_a;
+    let w_b = 1. / **mass_b;
+    let w_sum = w_a + w_b;
+    let pos_impulse = normal * (-penetration_depth / w_sum);
+    pos_a.0 += normal * w_a * pos_impulse;
+    pos_b.0 -= normal * w_b * pos_impulse;
+}
+fn constrain_statics_body_positions(pos: &mut Pos, normal: &Vec2, penetration_depth: f32) {
+    pos.0 -= normal * penetration_depth;
 }
 fn solve_pos_circle_statics(
     mut dynamics: Query<(Entity, &mut Pos, &CircleCollider), With<Mass>>,
@@ -188,11 +202,12 @@ fn solve_pos_circle_statics(
         for (entity_b, pos_b, col_b) in statics.iter() {
             let ab = pos_b.0 - pos_a.0;
             let combined_radius = col_a.radius + col_b.radius;
-            if ab.length_squared() < combined_radius * combined_radius {
-                let penetration_depth = combined_radius - ab.length();
-                let n = ab.normalize();
-                contacts.0.push((entity_a, entity_b, n));
-                pos_a.0 -= n * penetration_depth;
+            let len = ab.length();
+            if len < combined_radius {
+                let penetration_depth = combined_radius - len;
+                let normal = ab / len;
+                constrain_statics_body_positions(&mut pos_a, &normal, penetration_depth);
+                contacts.0.push((entity_a, entity_b, normal));
             }
         }
     }
@@ -204,15 +219,15 @@ fn solve_pos_box_statics(
 ) {
     for (entity_a, mut pos_a, col_a) in dynamics.iter_mut() {
         for (entity_b, pos_b, box_b) in statics.iter() {
-            let ab = pos_a.0 - pos_b.0;
-            let box_to_circle_abs = ab.abs();
+            let box_to_circle = pos_a.0 - pos_b.0;
+            let box_to_circle_abs = box_to_circle.abs();
             let half_box = box_b.size / 2.;
             let cornor_to_center = box_to_circle_abs - half_box;
             let r = col_a.radius;
             if cornor_to_center.x > r || cornor_to_center.y > r {
                 continue;
             }
-            let s = ab.signum();
+            let s = box_to_circle.signum();
             let (n, penetration_depth) = if cornor_to_center.x > 0. && cornor_to_center.y > 0. {
                 let cornor_to_center_sqr = cornor_to_center.length_squared();
                 if cornor_to_center_sqr > r * r {
@@ -227,8 +242,9 @@ fn solve_pos_box_statics(
             } else {
                 (Vec2::Y * -s.y, -cornor_to_center.y + r)
             };
-            pos_a.0 -= n * penetration_depth;
-            contacts.push((entity_a, entity_b, n));
+            //positive or negative unsure
+            constrain_statics_body_positions(&mut pos_a, &n, penetration_depth);
+            contacts.0.push((entity_a, entity_b, n));
         }
     }
 }
